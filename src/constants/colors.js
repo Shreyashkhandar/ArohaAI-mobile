@@ -1,0 +1,15 @@
+export const COLORS = {
+  primary: '#5B7C8D',
+  secondary: '#A8C3B8',
+  background: '#F6F8F7',
+  accent: '#C9B8E8',
+  text: '#263328',
+  textMuted: '#5B7C8D',
+  textSubtle: '#637870',
+  cardBackground: '#FFFFFF',
+  cardBorder: '#E1EBE6',
+  selectedBorder: '#5B7C8D',
+  selectedCardBg: '#F0F5F3',
+  buttonText: '#FFFFFF',
+  white: '#FFFFFF',
+};
