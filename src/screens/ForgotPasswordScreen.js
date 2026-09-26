@@ -16,28 +16,25 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS } from '../constants/colors';
 import ArohaLogo from '../components/ArohaLogo';
-import RoleDropdown from '../components/RoleDropdown';
-import { loginWithEmail } from '../services/authService';
+import { resetPasswordForEmail } from '../services/authService';
 
-export default function LoginScreen({ onLoginSuccess, onNavigateToRegister, onNavigateToForgotPassword }) {
+export default function ForgotPasswordScreen({ onNavigateToLogin }) {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState('User');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const handleLoginPress = async () => {
+  const handleResetPress = async () => {
     Keyboard.dismiss();
     setErrorMessage('');
+    setSuccessMessage('');
     setIsLoading(true);
 
     try {
-      const result = await loginWithEmail(email, password, role);
-      if (onLoginSuccess) {
-        onLoginSuccess(result);
-      }
+      await resetPasswordForEmail(email);
+      setSuccessMessage('A password reset link has been sent to your email address.');
     } catch (err) {
-      setErrorMessage(err.message || 'Login failed. Please try again.');
+      setErrorMessage(err.message || 'Unable to request password reset. Please check your email.');
     } finally {
       setIsLoading(false);
     }
@@ -52,34 +49,43 @@ export default function LoginScreen({ onLoginSuccess, onNavigateToRegister, onNa
           style={styles.keyboardView}
         >
           <View style={styles.container}>
-            {/* Upper-Center Logo */}
+            {/* Logo */}
             <View style={styles.logoContainer}>
               <ArohaLogo size={80} />
             </View>
 
             {/* Heading */}
-            <Text style={styles.heading}>Login</Text>
+            <Text style={styles.heading}>Reset Password</Text>
+            <Text style={styles.subheading}>
+              Enter your email address to receive a password reset link.
+            </Text>
 
-            {/* Error Banner */}
+            {/* Error / Success Banners */}
             {errorMessage ? (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>{errorMessage}</Text>
               </View>
             ) : null}
 
+            {successMessage ? (
+              <View style={styles.successContainer}>
+                <Text style={styles.successText}>{successMessage}</Text>
+              </View>
+            ) : null}
+
             {/* Form Section */}
             <View style={styles.formContainer}>
-              {/* Email Input */}
               <View style={styles.inputWrapper}>
                 <Text style={styles.inputLabel}>Email</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Enter your email"
+                  placeholder="Enter your registered email"
                   placeholderTextColor="#8A9D93"
                   value={email}
                   onChangeText={(val) => {
                     setEmail(val);
                     if (errorMessage) setErrorMessage('');
+                    if (successMessage) setSuccessMessage('');
                   }}
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -89,79 +95,30 @@ export default function LoginScreen({ onLoginSuccess, onNavigateToRegister, onNa
                 />
               </View>
 
-              {/* Password Input */}
-              <View style={styles.inputWrapper}>
-                <View style={styles.passwordHeaderRow}>
-                  <Text style={styles.inputLabel}>Password</Text>
-                  {onNavigateToForgotPassword && (
-                    <TouchableOpacity
-                      onPress={onNavigateToForgotPassword}
-                      activeOpacity={0.7}
-                      accessibilityRole="button"
-                      accessibilityLabel="Forgot password?"
-                    >
-                      <Text style={styles.forgotPasswordText}>Forgot password?</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#8A9D93"
-                  value={password}
-                  onChangeText={(val) => {
-                    setPassword(val);
-                    if (errorMessage) setErrorMessage('');
-                  }}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  editable={!isLoading}
-                  accessibilityLabel="Password input field"
-                />
-              </View>
-
-              {/* Role Dropdown */}
-              <RoleDropdown
-                label="Select Role"
-                options={['User', 'Counsellor']}
-                selectedOption={role}
-                onSelect={(selected) => {
-                  setRole(selected);
-                  if (errorMessage) setErrorMessage('');
-                }}
-              />
-
-              {/* Primary Login Button */}
               <TouchableOpacity
-                style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
-                onPress={handleLoginPress}
+                style={[styles.resetButton, isLoading && styles.buttonDisabled]}
+                onPress={handleResetPress}
                 activeOpacity={0.8}
                 disabled={isLoading}
                 accessibilityRole="button"
-                accessibilityLabel="Login"
-                accessibilityHint="Submits login credentials"
+                accessibilityLabel="Send Reset Link"
               >
                 {isLoading ? (
                   <ActivityIndicator color={COLORS.buttonText} size="small" />
                 ) : (
-                  <Text style={styles.loginButtonText}>Login</Text>
+                  <Text style={styles.resetButtonText}>Send Reset Link</Text>
                 )}
               </TouchableOpacity>
 
-              {/* Navigation Link to Register */}
-              {onNavigateToRegister && (
-                <TouchableOpacity
-                  style={styles.registerLink}
-                  onPress={onNavigateToRegister}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel="Don't have an account? Register"
-                >
-                  <Text style={styles.registerLinkText}>
-                    Don't have an account? <Text style={styles.registerLinkBold}>Register</Text>
-                  </Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={styles.backLink}
+                onPress={onNavigateToLogin}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Back to Login"
+              >
+                <Text style={styles.backLinkText}>← Back to Login</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -190,12 +147,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heading: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '600',
     color: COLORS.text,
-    marginBottom: 20,
+    marginBottom: 8,
     textAlign: 'center',
     letterSpacing: 0.2,
+  },
+  subheading: {
+    fontSize: 14,
+    color: COLORS.textSubtle,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+    paddingHorizontal: 12,
   },
   errorContainer: {
     width: '100%',
@@ -213,29 +178,35 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
+  successContainer: {
+    width: '100%',
+    backgroundColor: '#EDF7F2',
+    borderWidth: 1,
+    borderColor: '#A8C3B8',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+  },
+  successText: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
   formContainer: {
     width: '100%',
   },
   inputWrapper: {
-    marginBottom: 16,
+    marginBottom: 18,
     width: '100%',
-  },
-  passwordHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
   },
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: COLORS.text,
+    marginBottom: 8,
     letterSpacing: 0.2,
-  },
-  forgotPasswordText: {
-    fontSize: 13,
-    color: COLORS.primary,
-    fontWeight: '600',
   },
   input: {
     backgroundColor: COLORS.cardBackground,
@@ -253,7 +224,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 1,
   },
-  loginButton: {
+  resetButton: {
     backgroundColor: COLORS.primary,
     borderRadius: 14,
     paddingVertical: 16,
@@ -267,26 +238,23 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  loginButtonDisabled: {
+  buttonDisabled: {
     opacity: 0.7,
   },
-  loginButtonText: {
+  resetButtonText: {
     color: COLORS.buttonText,
     fontSize: 17,
     fontWeight: '600',
     letterSpacing: 0.3,
   },
-  registerLink: {
+  backLink: {
     marginTop: 20,
     paddingVertical: 8,
     alignItems: 'center',
   },
-  registerLinkText: {
+  backLinkText: {
     fontSize: 14,
-    color: COLORS.textSubtle,
-  },
-  registerLinkBold: {
-    color: COLORS.primary,
     fontWeight: '600',
+    color: COLORS.primary,
   },
 });
