@@ -9,6 +9,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { COLORS } from '../theme/theme';
+import Icon from './Icon';
 
 export default function RoleDropdown({
   label = 'Select Role',
@@ -38,7 +39,7 @@ export default function RoleDropdown({
         accessibilityHint="Opens dropdown to select role"
       >
         <Text style={styles.selectedText}>{selectedOption}</Text>
-        <Text style={styles.arrowIcon}>▼</Text>
+        <Icon name="chevron-right" size={16} color={COLORS.textSubtle} style={{ transform: [{ rotate: '90deg' }] }} />
       </TouchableOpacity>
 
       <Modal
@@ -77,7 +78,7 @@ export default function RoleDropdown({
                           {item}
                         </Text>
                         {isSelected && (
-                          <Text style={styles.checkmark}>✓</Text>
+                          <Icon name="checkmark" size={18} color={COLORS.primary} />
                         )}
                       </TouchableOpacity>
                     );

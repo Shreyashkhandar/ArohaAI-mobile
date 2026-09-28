@@ -6,36 +6,45 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
-  Platform,
 } from 'react-native';
-import { COLORS } from '../../shared/theme/theme';
-import ArohaLogo from '../../shared/components/ArohaLogo';
+import { COLORS, SPACING, BORDER_RADIUS } from '../../shared/theme/theme';
+import Icon from '../../shared/components/Icon';
 import { logout, getUserProfile } from '../../shared/services/authService';
+import { getAssignedCounsellor } from '../services/counsellorService';
+import { useI18n } from '../../shared/i18n';
 
 export default function ProfileScreen({ profile: initialProfile, user, onLogoutSuccess }) {
+  const { t, language, setLanguage } = useI18n();
   const [profile, setProfile] = useState(initialProfile);
+  const [counsellor, setCounsellor] = useState(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
-    async function loadFreshProfile() {
+    async function loadData() {
       if (user?.id) {
         try {
           setIsLoadingProfile(true);
-          const freshData = await getUserProfile(user.id);
-          if (isMounted && freshData) {
-            setProfile(freshData);
+          const [freshData, counsellorRes] = await Promise.all([
+            getUserProfile(user.id),
+            getAssignedCounsellor(),
+          ]);
+          if (isMounted) {
+            if (freshData) setProfile(freshData);
+            if (counsellorRes && counsellorRes.success) {
+              setCounsellor(counsellorRes.counsellor);
+            }
           }
         } catch (err) {
-          console.warn('[ProfileScreen] Profile fetch error:', err.message);
+          console.warn('[ProfileScreen] Load error:', err?.message);
         } finally {
           if (isMounted) setIsLoadingProfile(false);
         }
       }
     }
 
-    loadFreshProfile();
+    loadData();
     return () => {
       isMounted = false;
     };
@@ -49,92 +58,184 @@ export default function ProfileScreen({ profile: initialProfile, user, onLogoutS
         onLogoutSuccess();
       }
     } catch (err) {
-      console.warn('Logout error:', err.message);
+      console.warn('Logout error:', err?.message);
     } finally {
       setIsLoggingOut(false);
     }
   };
 
-  const fullName = profile?.full_name || user?.user_metadata?.full_name || 'Not provided';
-  const email = profile?.email || user?.email || 'Not provided';
+  const fullName = profile?.full_name || user?.user_metadata?.full_name || 'User Account';
+  const email = profile?.email || user?.email || 'N/A';
   const phone = profile?.phone || 'Not provided';
-  const role = profile?.role ? String(profile.role).toLowerCase() : 'user';
+  const userInitial = fullName.charAt(0).toUpperCase();
+
+  const counsellorName = counsellor ? counsellor.full_name : t('profile.notAssigned');
+  const counsellorPhone = counsellor && counsellor.phone ? counsellor.phone : t('counsellor.phoneNotAvailable');
 
   return (
     <ScrollView
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <ArohaLogo size={64} style={styles.logoMargin} />
-        <Text style={styles.title}>Profile</Text>
-        <Text style={styles.subtitle}>Account details & preferences</Text>
+      {/* Title Header */}
+      <View style={styles.headerTitleSection}>
+        <Text style={styles.screenTitle}>{t('profile.title')}</Text>
       </View>
 
-      {/* Profile Card */}
-      <View style={styles.card}>
-        <View style={styles.cardHeaderRow}>
-          <Text style={styles.cardTitle}>User Information</Text>
-          {isLoadingProfile && (
-            <ActivityIndicator size="small" color={COLORS.primary} />
-          )}
+      {/* User Identity Card */}
+      <View style={styles.userCard}>
+        <View style={styles.avatarCircle}>
+          <Text style={styles.avatarInitial}>{userInitial}</Text>
         </View>
-
-        {/* Full Name */}
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Full Name</Text>
-          <Text style={styles.infoValue}>{fullName}</Text>
+        <View style={styles.userMeta}>
+          <Text style={styles.userName}>{fullName}</Text>
+          <Text style={styles.userEmail}>{email}</Text>
         </View>
+        {isLoadingProfile && (
+          <ActivityIndicator size="small" color={COLORS.primary} style={{ marginLeft: 8 }} />
+        )}
+      </View>
 
-        <View style={styles.divider} />
-
-        {/* Email */}
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Email</Text>
-          <Text style={styles.infoValue}>{email}</Text>
+      {/* Language Preference Section */}
+      <View style={styles.sectionContainer}>
+        <Text style={styles.sectionHeading}>{t('profile.languagePreference')}</Text>
+        <View style={styles.languageOptionsRow}>
+          {[
+            { code: 'en', label: 'English' },
+            { code: 'hi', label: 'Hindi (हिंदी)' },
+            { code: 'mr', label: 'Marathi (मराठी)' },
+          ].map((lang) => {
+            const isSelected = language === lang.code;
+            return (
+              <TouchableOpacity
+                key={lang.code}
+                style={[
+                  styles.langChip,
+                  isSelected && styles.langChipSelected,
+                ]}
+                onPress={() => setLanguage(lang.code)}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
+              >
+                <Text
+                  style={[
+                    styles.langChipText,
+                    isSelected && styles.langChipTextSelected,
+                  ]}
+                >
+                  {lang.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
+      </View>
 
-        <View style={styles.divider} />
+      {/* Section 1: Personal Information */}
+      <View style={styles.sectionContainer}>
+        <Text style={styles.sectionHeading}>{t('profile.accountSection')}</Text>
 
-        {/* Phone */}
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Phone</Text>
-          <Text style={styles.infoValue}>{phone}</Text>
+        <View style={styles.listCard}>
+          {/* Row 1: Name */}
+          <View style={styles.listRow}>
+            <Icon name="person" size={18} color={COLORS.primary} style={styles.rowIcon} />
+            <Text style={styles.rowLabel}>{t('profile.fullName')}</Text>
+            <Text style={styles.rowValue}>{fullName}</Text>
+          </View>
+
+          <View style={styles.rowDivider} />
+
+          {/* Row 2: Email */}
+          <View style={styles.listRow}>
+            <Icon name="mail" size={18} color={COLORS.primary} style={styles.rowIcon} />
+            <Text style={styles.rowLabel}>{t('profile.email')}</Text>
+            <Text style={styles.rowValue}>{email}</Text>
+          </View>
+
+          <View style={styles.rowDivider} />
+
+          {/* Row 3: Phone */}
+          <View style={styles.listRow}>
+            <Icon name="call" size={18} color={COLORS.primary} style={styles.rowIcon} />
+            <Text style={styles.rowLabel}>{t('profile.phone')}</Text>
+            <Text style={styles.rowValue}>{phone}</Text>
+          </View>
+
+          <View style={styles.rowDivider} />
+
+          {/* Row 4: Privacy & Protection */}
+          <View style={styles.listRow}>
+            <Icon name="shield" size={18} color={COLORS.primary} style={styles.rowIcon} />
+            <Text style={styles.rowLabel}>{t('profile.privacyConsent')}</Text>
+            <Text style={styles.rowValue}>{t('profile.protectedText')}</Text>
+          </View>
         </View>
+      </View>
 
-        <View style={styles.divider} />
+      {/* Section 2: Support Information */}
+      <View style={styles.sectionContainer}>
+        <Text style={styles.sectionHeading}>{t('profile.supportSection')}</Text>
 
-        {/* Account Role */}
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Account Role</Text>
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleBadgeText}>
-              {role === 'user' ? 'User' : role.toUpperCase()}
+        <View style={styles.listCard}>
+          {/* Row 1: Assigned Counsellor */}
+          <View style={styles.listRow}>
+            <Icon name="person" size={18} color={COLORS.primary} style={styles.rowIcon} />
+            <Text style={styles.rowLabel}>{t('profile.assignedCounsellor')}</Text>
+            <Text style={[styles.rowValue, counsellor && { fontWeight: '700', color: COLORS.text }]}>
+              {counsellorName}
+            </Text>
+          </View>
+
+          <View style={styles.rowDivider} />
+
+          {/* Row 2: Counsellor Phone */}
+          <View style={styles.listRow}>
+            <Icon name="call" size={18} color={COLORS.primary} style={styles.rowIcon} />
+            <Text style={styles.rowLabel}>{t('profile.counsellorPhone')}</Text>
+            <Text style={styles.rowValue}>{counsellorPhone}</Text>
+          </View>
+
+          <View style={styles.rowDivider} />
+
+          {/* Row 3: Case / Support Status */}
+          <View style={styles.listRow}>
+            <Icon name="folder-open" size={18} color={COLORS.primary} style={styles.rowIcon} />
+            <Text style={styles.rowLabel}>{t('profile.caseStatus')}</Text>
+            <Text style={[styles.rowValue, { color: COLORS.primary, fontWeight: '700' }]}>
+              {counsellor ? t('profile.activeCareCase') : t('profile.notAssigned')}
             </Text>
           </View>
         </View>
       </View>
 
-      {/* Logout Card */}
-      <View style={styles.logoutCard}>
-        <Text style={styles.logoutTitle}>Account Session</Text>
-        <Text style={styles.logoutSubtitle}>
-          Log out securely from your current session on this device.
-        </Text>
+      {/* Section 3: Privacy Information */}
+      <View style={styles.sectionContainer}>
+        <Text style={styles.sectionHeading}>{t('profile.privacyInfoTitle')}</Text>
+        <View style={styles.privacyCard}>
+          <Text style={styles.privacyText}>
+            {t('profile.privacyInfoBody')}
+          </Text>
+        </View>
+      </View>
 
+      {/* Section 4: Sign Out */}
+      <View style={styles.sectionContainer}>
         <TouchableOpacity
-          style={[styles.logoutButton, isLoggingOut && styles.buttonDisabled]}
+          style={[styles.logoutRow, isLoggingOut && styles.buttonDisabled]}
           onPress={handleLogout}
-          activeOpacity={0.8}
           disabled={isLoggingOut}
+          activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="Log Out"
+          accessibilityLabel="Sign out"
         >
           {isLoggingOut ? (
             <ActivityIndicator color={COLORS.primary} size="small" />
           ) : (
-            <Text style={styles.logoutButtonText}>Log Out</Text>
+            <>
+              <Icon name="log-out" size={18} color={COLORS.primary} style={{ marginRight: 10 }} />
+              <Text style={styles.logoutText}>{t('common.signOut')}</Text>
+            </>
           )}
         </TouchableOpacity>
       </View>
@@ -144,132 +245,157 @@ export default function ProfileScreen({ profile: initialProfile, user, onLogoutS
 
 const styles = StyleSheet.create({
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 40,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.xxl + 20,
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: 20,
+  headerTitleSection: {
+    marginBottom: SPACING.md,
   },
-  logoMargin: {
-    marginBottom: 10,
-  },
-  title: {
+  screenTitle: {
     fontSize: 26,
     fontWeight: '700',
     color: COLORS.text,
-    letterSpacing: 0.2,
-    marginBottom: 4,
+    letterSpacing: 0.1,
   },
-  subtitle: {
-    fontSize: 14,
-    color: COLORS.textSubtle,
-  },
-  card: {
+  userCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.cardBackground,
-    borderRadius: 20,
+    borderRadius: BORDER_RADIUS.xl,
     borderWidth: 1,
     borderColor: COLORS.cardBorder,
-    padding: 22,
-    shadowColor: COLORS.text,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
-    marginBottom: 20,
+    padding: SPACING.lg,
+    marginBottom: SPACING.xl,
   },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  avatarCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: COLORS.selectedCardBg,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'center',
+    marginRight: SPACING.md,
   },
-  cardTitle: {
-    fontSize: 17,
+  avatarInitial: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  userMeta: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: 18,
     fontWeight: '700',
     color: COLORS.text,
-    letterSpacing: 0.2,
+    marginBottom: 2,
   },
-  infoRow: {
-    paddingVertical: 8,
+  userEmail: {
+    fontSize: 13,
+    color: COLORS.textSubtle,
   },
-  infoLabel: {
+  sectionContainer: {
+    marginBottom: SPACING.xl,
+  },
+  sectionHeading: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.textSubtle,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-    marginBottom: 4,
+    marginBottom: SPACING.xs + 2,
+    marginLeft: 4,
   },
-  infoValue: {
-    fontSize: 16,
-    color: COLORS.text,
-    fontWeight: '500',
+  languageOptionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs + 2,
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#EBF2F0',
-    marginVertical: 10,
-  },
-  roleBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: COLORS.selectedCardBg,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 10,
-    marginTop: 4,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-  },
-  roleBadgeText: {
-    color: COLORS.primary,
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  logoutCard: {
+  langChip: {
     backgroundColor: COLORS.cardBackground,
-    borderRadius: 20,
     borderWidth: 1,
     borderColor: COLORS.cardBorder,
-    padding: 22,
-    shadowColor: COLORS.text,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
+    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    minHeight: 44,
+    justifyContent: 'center',
   },
-  logoutTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+  langChipSelected: {
+    backgroundColor: COLORS.selectedCardBg,
+    borderColor: COLORS.primary,
+  },
+  langChipText: {
+    fontSize: 13,
+    fontWeight: '500',
     color: COLORS.text,
-    marginBottom: 4,
   },
-  logoutSubtitle: {
+  langChipTextSelected: {
+    color: COLORS.primary,
+    fontWeight: '700',
+  },
+  listCard: {
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: BORDER_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    paddingHorizontal: SPACING.md,
+  },
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
+  rowIcon: {
+    marginRight: 12,
+  },
+  rowLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLORS.text,
+  },
+  rowValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLORS.textSubtle,
+  },
+  rowDivider: {
+    height: 1,
+    backgroundColor: '#F2F7F5',
+  },
+  privacyCard: {
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    padding: SPACING.md,
+  },
+  privacyText: {
     fontSize: 13,
     color: COLORS.textSubtle,
-    marginBottom: 18,
-    lineHeight: 18,
+    lineHeight: 19,
   },
-  logoutButton: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: COLORS.cardBorder,
-    borderRadius: 14,
-    paddingVertical: 16,
+  logoutRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 52,
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    paddingVertical: 14,
+    minHeight: 48,
   },
   buttonDisabled: {
-    opacity: 0.7,
+    opacity: 0.6,
   },
-  logoutButtonText: {
-    color: COLORS.primary,
-    fontSize: 16,
+  logoutText: {
+    fontSize: 15,
     fontWeight: '600',
-    letterSpacing: 0.3,
+    color: COLORS.primary,
   },
 });

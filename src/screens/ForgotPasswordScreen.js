@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS } from '../constants/colors';
 import ArohaLogo from '../components/ArohaLogo';
+import Icon from '../shared/components/Icon';
 import { resetPasswordForEmail } from '../services/authService';
 
 export default function ForgotPasswordScreen({ onNavigateToLogin }) {
@@ -111,13 +112,14 @@ export default function ForgotPasswordScreen({ onNavigateToLogin }) {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.backLink}
+                style={[styles.backLink, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
                 onPress={onNavigateToLogin}
                 activeOpacity={0.7}
                 accessibilityRole="button"
                 accessibilityLabel="Back to Login"
               >
-                <Text style={styles.backLinkText}>← Back to Login</Text>
+                <Icon name="arrow-back" size={15} color={COLORS.primary} style={{ marginRight: 6 }} />
+                <Text style={styles.backLinkText}>Back to Login</Text>
               </TouchableOpacity>
             </View>
           </View>

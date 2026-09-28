@@ -1,12 +1,18 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Platform } from 'react-native';
-import { COLORS } from '../../shared/theme/theme';
+import { COLORS, SPACING, BORDER_RADIUS } from '../../shared/theme/theme';
+import Icon from '../../shared/components/Icon';
+import { useI18n } from '../../shared/i18n';
 
 export default function UserNavBar({ activeTab, onSelectTab }) {
+  const { t } = useI18n();
+
   const tabs = [
-    { id: 'home', label: 'Home', icon: '🏠' },
-    { id: 'checkin', label: 'Check-in', icon: '📝' },
-    { id: 'profile', label: 'Profile', icon: '👤' },
+    { id: 'home', labelKey: 'common.home', activeIcon: 'home', inactiveIcon: 'home-outline' },
+    { id: 'checkin', labelKey: 'common.checkIn', activeIcon: 'document-text', inactiveIcon: 'document-text-outline' },
+    { id: 'appointments', labelKey: 'home.upcomingAppointments', activeIcon: 'calendar', inactiveIcon: 'calendar-outline', fallbackLabel: 'Schedule' },
+    { id: 'routine', labelKey: 'home.todaysRoutine', activeIcon: 'grid', inactiveIcon: 'grid-outline', fallbackLabel: 'Routine' },
+    { id: 'profile', labelKey: 'common.profile', activeIcon: 'person', inactiveIcon: 'person-outline' },
   ];
 
   return (
@@ -14,6 +20,8 @@ export default function UserNavBar({ activeTab, onSelectTab }) {
       <View style={styles.navBar}>
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
+          const label = tab.fallbackLabel ? (tab.id === 'appointments' ? 'Schedule' : 'Routine') : t(tab.labelKey);
+
           return (
             <TouchableOpacity
               key={tab.id}
@@ -22,13 +30,20 @@ export default function UserNavBar({ activeTab, onSelectTab }) {
               activeOpacity={0.7}
               accessibilityRole="tab"
               accessibilityState={{ selected: isActive }}
-              accessibilityLabel={`${tab.label} tab`}
+              accessibilityLabel={`${label} tab`}
             >
-              <Text style={[styles.tabIcon, isActive && styles.activeTabIcon]}>
-                {tab.icon}
-              </Text>
-              <Text style={[styles.tabLabel, isActive && styles.activeTabLabel]}>
-                {tab.label}
+              <Icon
+                name={isActive ? tab.activeIcon : tab.inactiveIcon}
+                size={18}
+                color={isActive ? COLORS.primary : COLORS.textSubtle}
+                style={styles.tabIcon}
+              />
+              <Text
+                style={[styles.tabLabel, isActive && styles.activeTabLabel]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
+                {label}
               </Text>
             </TouchableOpacity>
           );
@@ -43,14 +58,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cardBackground,
     borderTopWidth: 1,
     borderTopColor: COLORS.cardBorder,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+    paddingHorizontal: SPACING.xs,
+    paddingTop: SPACING.xs,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 8,
+    elevation: 4,
     shadowColor: COLORS.text,
     shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
   },
   navBar: {
     flexDirection: 'row',
@@ -61,26 +76,21 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 12,
-    marginHorizontal: 4,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.md,
+    marginHorizontal: 2,
   },
   activeTabButton: {
     backgroundColor: COLORS.selectedCardBg,
   },
   tabIcon: {
-    fontSize: 20,
-    marginBottom: 4,
-    opacity: 0.7,
-  },
-  activeTabIcon: {
-    opacity: 1,
+    marginBottom: 2,
   },
   tabLabel: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: '500',
     color: COLORS.textSubtle,
-    letterSpacing: 0.2,
+    letterSpacing: 0.1,
   },
   activeTabLabel: {
     color: COLORS.primary,

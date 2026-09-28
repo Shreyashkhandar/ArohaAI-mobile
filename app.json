@@ -4,7 +4,7 @@
     "slug": "ArohaAI",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/splash-icon.png",
     "userInterfaceStyle": "light",
     "backgroundColor": "#F6F8F7",
     "ios": {
@@ -12,9 +12,10 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/splash-icon.png",
         "backgroundColor": "#F6F8F7"
-      }
+      },
+      "package": "yacom.arohaai.mobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -30,6 +31,11 @@
           "resizeMode": "contain"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "aacb6a3f-af53-4435-8c73-09537b339088"
+      }
+    }
   }
 }

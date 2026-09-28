@@ -6,37 +6,51 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import { COLORS } from '../../shared/theme/theme';
+import { COLORS, SPACING, BORDER_RADIUS } from '../../shared/theme/theme';
+import Icon from '../../shared/components/Icon';
+import CheckInMoodSelector from '../components/CheckInMoodSelector';
+import CheckInTextInput from '../components/CheckInTextInput';
 import { submitCheckIn } from '../services/checkinService';
-
-const PREDEFINED_OPTIONS = [
-  { id: 'Good', label: 'Good', emoji: '😊' },
-  { id: 'Okay', label: 'Okay', emoji: '😐' },
-  { id: 'Not great', label: 'Not great', emoji: '🙁' },
-  { id: 'Difficult', label: 'Difficult', emoji: '🌧️' },
-];
+import { useI18n } from '../../shared/i18n';
 
 export default function CheckInScreen({ onNavigateToHome, onCheckInComplete }) {
-  const [selectedOption, setSelectedOption] = useState(null);
+  const { t } = useI18n();
+  const [selectedMood, setSelectedMood] = useState(null);
+  const [reflectionText, setReflectionText] = useState('');
+  const [wantsContact, setWantsContact] = useState(null); // null, true, false
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleSubmit = async () => {
-    if (!selectedOption || isSubmitting) return;
+    if (!selectedMood || isSubmitting) return;
 
     setErrorMessage('');
     setIsSubmitting(true);
 
     try {
-      await submitCheckIn(selectedOption);
+      const parts = [`Feeling: ${selectedMood}`];
+      if (reflectionText.trim()) {
+        parts.push(`Message to counsellor: ${reflectionText.trim()}`);
+      }
+      if (wantsContact !== null) {
+        parts.push(`Contact requested: ${wantsContact ? 'Yes' : 'No'}`);
+      }
+
+      const fullResponse = parts.join(' | ');
+
+      await submitCheckIn(fullResponse);
       setIsSuccess(true);
       if (onCheckInComplete) {
         onCheckInComplete();
       }
     } catch (err) {
-      setErrorMessage(err.message || 'Unable to submit check-in. Please try again.');
+      setErrorMessage(
+        err?.message || t('checkin.saveErrorMessage')
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -49,231 +63,302 @@ export default function CheckInScreen({ onNavigateToHome, onCheckInComplete }) {
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.keyboardView}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Check-in</Text>
-        <Text style={styles.headerSubtitle}>
-          Take a moment for yourself today.
-        </Text>
-      </View>
-
-      {/* Error Banner */}
-      {errorMessage ? (
-        <View style={styles.errorCard}>
-          <Text style={styles.errorText}>{errorMessage}</Text>
-        </View>
-      ) : null}
-
-      {isSuccess ? (
-        /* Success State */
-        <View style={styles.successCard}>
-          <View style={styles.successBadge}>
-            <Text style={styles.successBadgeIcon}>✓</Text>
-          </View>
-          <Text style={styles.successTitle}>Check-in recorded</Text>
-          <Text style={styles.successSubtitle}>
-            Thank you for checking in today. Your response has been saved securely.
-          </Text>
-
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={handleReturnToHome}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Return to Home"
-          >
-            <Text style={styles.primaryButtonText}>Return to Home</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        /* Check-in Selection Card */
-        <View style={styles.card}>
-          <Text style={styles.questionTitle}>How are you feeling today?</Text>
-          <Text style={styles.questionSubtitle}>
-            Select the option that best describes your feeling.
-          </Text>
-
-          {/* Predefined Options */}
-          <View style={styles.optionsContainer}>
-            {PREDEFINED_OPTIONS.map((option) => {
-              const isSelected = selectedOption === option.id;
-              return (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[
-                    styles.optionButton,
-                    isSelected && styles.optionButtonSelected,
-                  ]}
-                  onPress={() => {
-                    setSelectedOption(option.id);
-                    if (errorMessage) setErrorMessage('');
-                  }}
-                  disabled={isSubmitting}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: isSelected }}
-                  accessibilityLabel={option.label}
-                >
-                  <Text style={styles.optionEmoji}>{option.emoji}</Text>
-                  <Text
-                    style={[
-                      styles.optionLabel,
-                      isSelected && styles.optionLabelSelected,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              (!selectedOption || isSubmitting) && styles.buttonDisabled,
-            ]}
-            onPress={handleSubmit}
-            disabled={!selectedOption || isSubmitting}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Submit Check-in"
-          >
-            {isSubmitting ? (
-              <ActivityIndicator color={COLORS.buttonText} size="small" />
-            ) : (
-              <Text style={styles.primaryButtonText}>Submit Check-in</Text>
-            )}
-          </TouchableOpacity>
-
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Navigation Header */}
+        <View style={styles.headerBar}>
           {onNavigateToHome && (
             <TouchableOpacity
-              style={styles.cancelButton}
+              style={styles.backButton}
               onPress={handleReturnToHome}
-              disabled={isSubmitting}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel="Cancel"
+              accessibilityLabel={t('common.back')}
             >
-              <Text style={styles.cancelButtonText}>Return to Home</Text>
+              <Icon name="arrow-back" size={16} color={COLORS.primary} />
+              <Text style={styles.backButtonText}>{t('common.home')}</Text>
             </TouchableOpacity>
           )}
         </View>
-      )}
-    </ScrollView>
+
+        {/* Title Section */}
+        <View style={styles.titleSection}>
+          <Text style={styles.screenTitle}>{t('checkin.title')}</Text>
+          <Text style={styles.screenSubtitle}>
+            {t('checkin.headerSub')}
+          </Text>
+        </View>
+
+        {/* Error Banner */}
+        {errorMessage ? (
+          <View style={styles.errorCard}>
+            <Icon name="shield" size={16} color="#9B1C1C" style={{ marginRight: 8 }} />
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          </View>
+        ) : null}
+
+        {isSuccess ? (
+          /* Confirmation / Success State */
+          <View style={styles.successCard}>
+            <View style={styles.successIconCircle}>
+              <Icon name="checkmark" size={30} color={COLORS.primary} />
+            </View>
+
+            <Text style={styles.successTitle}>{t('checkin.checkInSubmittedTitle')}</Text>
+            <Text style={styles.successSubtitle}>
+              {t('checkin.checkInSubmittedMessage')}
+            </Text>
+
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={handleReturnToHome}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.backToHome')}
+            >
+              <Text style={styles.primaryButtonText}>{t('common.backToHome')}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          /* Current Check-In Form */
+          <View style={styles.formContainer}>
+            {/* Section 1: Mood Selector */}
+            <CheckInMoodSelector
+              selectedMood={selectedMood}
+              onSelectMood={(mood) => {
+                setSelectedMood(mood);
+                if (errorMessage) setErrorMessage('');
+              }}
+              disabled={isSubmitting}
+            />
+
+            {/* Section 2: Optional Text Message for Counsellor */}
+            <CheckInTextInput
+              value={reflectionText}
+              onChangeText={setReflectionText}
+              disabled={isSubmitting}
+              onClear={() => setReflectionText('')}
+            />
+
+            {/* Section 3: Contact Request Option */}
+            <View style={styles.contactSection}>
+              <Text style={styles.sectionLabel}>{t('checkin.contactRequestQuestion')}</Text>
+              <View style={styles.contactChoiceRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.contactChip,
+                    wantsContact === true && styles.contactChipSelected,
+                  ]}
+                  onPress={() => setWantsContact(true)}
+                  disabled={isSubmitting}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[
+                      styles.contactChipText,
+                      wantsContact === true && styles.contactChipTextSelected,
+                    ]}
+                  >
+                    {t('common.yes')}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.contactChip,
+                    wantsContact === false && styles.contactChipSelected,
+                  ]}
+                  onPress={() => setWantsContact(false)}
+                  disabled={isSubmitting}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[
+                      styles.contactChipText,
+                      wantsContact === false && styles.contactChipTextSelected,
+                    ]}
+                  >
+                    {t('common.no')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Privacy & Security Note */}
+            <View style={styles.privacyCard}>
+              <Icon name="shield-outline" size={16} color={COLORS.primary} style={styles.privacyIcon} />
+              <Text style={styles.privacyText}>
+                {t('checkin.privacyComfortNote')}
+              </Text>
+            </View>
+
+            {/* Primary Submit Button */}
+            <TouchableOpacity
+              style={[
+                styles.primaryButton,
+                (!selectedMood || isSubmitting) && styles.buttonDisabled,
+              ]}
+              onPress={handleSubmit}
+              disabled={!selectedMood || isSubmitting}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={t('checkin.submitCheckIn')}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color={COLORS.buttonText} size="small" />
+              ) : (
+                <Text style={styles.primaryButtonText}>{t('checkin.submitCheckIn')}</Text>
+              )}
+            </TouchableOpacity>
+
+            {onNavigateToHome && (
+              <TouchableOpacity
+                style={styles.cancelLink}
+                onPress={handleReturnToHome}
+                disabled={isSubmitting}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.cancelLinkText}>{t('common.cancel')}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardView: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 40,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.xxl + 20,
   },
-  header: {
-    marginBottom: 20,
+  headerBar: {
+    marginBottom: SPACING.sm,
   },
-  headerTitle: {
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.xs,
+  },
+  backButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.primary,
+    marginLeft: 4,
+  },
+  titleSection: {
+    marginBottom: SPACING.lg,
+  },
+  screenTitle: {
     fontSize: 26,
     fontWeight: '700',
     color: COLORS.text,
-    letterSpacing: 0.2,
-    marginBottom: 6,
+    marginBottom: 4,
+    letterSpacing: 0.1,
   },
-  headerSubtitle: {
+  screenSubtitle: {
     fontSize: 14,
     color: COLORS.textSubtle,
     lineHeight: 20,
   },
   errorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FDF2F2',
     borderWidth: 1,
     borderColor: '#F8B4B4',
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.lg,
   },
   errorText: {
+    flex: 1,
     color: '#9B1C1C',
     fontSize: 13,
     fontWeight: '500',
-    textAlign: 'center',
   },
-  card: {
-    backgroundColor: COLORS.cardBackground,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    padding: 24,
-    shadowColor: COLORS.text,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
+  formContainer: {
+    width: '100%',
   },
-  questionTitle: {
-    fontSize: 19,
+  contactSection: {
+    marginBottom: SPACING.xl,
+  },
+  sectionLabel: {
+    fontSize: 16,
     fontWeight: '700',
     color: COLORS.text,
-    marginBottom: 6,
-    letterSpacing: 0.2,
+    marginBottom: SPACING.sm,
   },
-  questionSubtitle: {
-    fontSize: 13,
-    color: COLORS.textSubtle,
-    marginBottom: 22,
-    lineHeight: 18,
-  },
-  optionsContainer: {
-    marginBottom: 24,
-  },
-  optionButton: {
-    backgroundColor: COLORS.background,
-    borderWidth: 1.5,
-    borderColor: COLORS.cardBorder,
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
+  contactChoiceRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    minHeight: 54,
+    gap: SPACING.md,
   },
-  optionButtonSelected: {
+  contactChip: {
+    flex: 1,
+    backgroundColor: COLORS.cardBackground,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 46,
+  },
+  contactChipSelected: {
     backgroundColor: COLORS.selectedCardBg,
     borderColor: COLORS.primary,
+    borderWidth: 1.5,
   },
-  optionEmoji: {
-    fontSize: 22,
-    marginRight: 14,
-  },
-  optionLabel: {
-    fontSize: 16,
-    fontWeight: '600',
+  contactChipText: {
+    fontSize: 14,
+    fontWeight: '500',
     color: COLORS.text,
   },
-  optionLabelSelected: {
+  contactChipTextSelected: {
     color: COLORS.primary,
     fontWeight: '700',
   },
+  privacyCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#F4F8F6',
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.xl,
+    borderWidth: 1,
+    borderColor: '#E2ECE7',
+  },
+  privacyIcon: {
+    marginRight: 10,
+    marginTop: 2,
+  },
+  privacyText: {
+    flex: 1,
+    fontSize: 13,
+    color: COLORS.textSubtle,
+    lineHeight: 18,
+  },
   primaryButton: {
     backgroundColor: COLORS.primary,
-    borderRadius: 14,
+    borderRadius: BORDER_RADIUS.lg,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 52,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 2,
+    width: '100%',
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -282,60 +367,50 @@ const styles = StyleSheet.create({
     color: COLORS.buttonText,
     fontSize: 16,
     fontWeight: '600',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
-  cancelButton: {
-    marginTop: 14,
-    paddingVertical: 10,
+  cancelLink: {
+    marginTop: SPACING.md,
+    paddingVertical: SPACING.xs,
     alignItems: 'center',
   },
-  cancelButtonText: {
+  cancelLinkText: {
     fontSize: 14,
     color: COLORS.textSubtle,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   successCard: {
     backgroundColor: COLORS.cardBackground,
-    borderRadius: 20,
+    borderRadius: BORDER_RADIUS.xl,
     borderWidth: 1,
     borderColor: COLORS.cardBorder,
-    padding: 28,
+    padding: SPACING.xl,
     alignItems: 'center',
-    shadowColor: COLORS.text,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
-    marginVertical: 10,
+    marginTop: SPACING.md,
   },
-  successBadge: {
+  successIconCircle: {
     width: 60,
     height: 60,
     borderRadius: 30,
     backgroundColor: COLORS.selectedCardBg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
-    borderWidth: 2,
+    marginBottom: SPACING.md,
+    borderWidth: 1.5,
     borderColor: COLORS.primary,
-  },
-  successBadgeIcon: {
-    fontSize: 28,
-    color: COLORS.primary,
-    fontWeight: 'bold',
   },
   successTitle: {
     fontSize: 22,
     fontWeight: '700',
     color: COLORS.text,
-    marginBottom: 10,
+    marginBottom: 8,
     textAlign: 'center',
   },
   successSubtitle: {
     fontSize: 14,
     color: COLORS.textSubtle,
     textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 24,
+    lineHeight: 20,
+    marginBottom: SPACING.xl,
   },
 });

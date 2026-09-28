@@ -10,6 +10,7 @@ export const COLORS = {
   cardBorder: '#E1EBE6',
   selectedBorder: '#5B7C8D',
   selectedCardBg: '#F0F5F3',
+  buttonBackground: '#5B7C8D',
   buttonText: '#FFFFFF',
   white: '#FFFFFF',
 };

@@ -1,4 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { analyzeCheckIn } from '../../shared/services/aiService';
+import { APP_CONFIG } from '../../shared/config/appConfig';
+import { DEMO_CHECK_INS } from '../../shared/demo/demoData';
 
 /**
  * Submit a daily check-in response to public.checkins table,
@@ -9,6 +12,17 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 export async function submitCheckIn(response) {
   if (!response || typeof response !== 'string' || !response.trim()) {
     throw new Error('Please select how you are feeling today.');
+  }
+
+  if (APP_CONFIG.presentationMode) {
+    const newRecord = {
+      id: `ci-${Date.now()}`,
+      user_id: 'demo-user-001',
+      response: response.trim(),
+      created_at: new Date().toISOString(),
+    };
+    DEMO_CHECK_INS.unshift(newRecord);
+    return { success: true, data: newRecord };
   }
 
   if (!isSupabaseConfigured()) {
@@ -24,7 +38,51 @@ export async function submitCheckIn(response) {
   const userId = userData.user.id;
 
   try {
-    // 2. Insert row into public.checkins
+    // 2. Ensure profile row exists for this authenticated user ID
+    const { data: profileExists } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!profileExists) {
+      await supabase.from('profiles').upsert([
+        {
+          id: userId,
+          email: userData.user.email || '',
+          full_name: userData.user.user_metadata?.full_name || '',
+          role: String(userData.user.user_metadata?.role || 'user').toLowerCase(),
+        },
+      ]);
+    }
+
+    // 3. Ensure active case exists for this user ID in public.cases
+    const { data: caseExists } = await supabase
+      .from('cases')
+      .select('id, counsellor_id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!caseExists) {
+      const { data: defaultCounsellor } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'counsellor')
+        .limit(1)
+        .maybeSingle();
+
+      const counsellorId = defaultCounsellor?.id || userId;
+      await supabase.from('cases').upsert([
+        {
+          user_id: userId,
+          counsellor_id: counsellorId,
+          status: 'active',
+          notes: '[System Initialized Case Record]',
+        },
+      ]);
+    }
+
+    // 4. Insert row into public.checkins
     const { data: checkinData, error: checkinError } = await supabase
       .from('checkins')
       .insert([
@@ -38,13 +96,16 @@ export async function submitCheckIn(response) {
 
     if (checkinError) {
       console.warn('[checkinService] Insert error:', checkinError.message);
+      if (checkinError.message?.includes('checkins_user_id_fkey') || checkinError.code === '23503') {
+        throw new Error('User account identity issue. Please re-authenticate and try again.');
+      }
       if (checkinError.message?.toLowerCase().includes('network') || checkinError.status === 0) {
         throw new Error('Unable to connect. Please check your internet connection.');
       }
       throw new Error('Unable to record your check-in right now. Please try again.');
     }
 
-    // 3. Trigger AI analysis pipeline (Failure here does NOT fail check-in submission)
+    // 4. Trigger AI analysis pipeline (Failure here does NOT fail check-in submission)
     try {
       await processAndStoreAIAnalysis({
         userId: userId,
@@ -76,37 +137,14 @@ async function processAndStoreAIAnalysis({ userId, checkinId, response }) {
     return existing;
   }
 
-  const aiServiceUrl = process.env.EXPO_PUBLIC_AI_SERVICE_URL || 'http://127.0.0.1:8001';
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 4000);
-
-  const res = await fetch(`${aiServiceUrl}/analyze`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      user_id: userId,
-      checkin_id: checkinId,
-      response: response,
-    }),
-    signal: controller.signal,
+  // Call dedicated aiService module
+  const aiResult = await analyzeCheckIn({
+    userId,
+    checkinId,
+    response,
   });
 
-  clearTimeout(timeoutId);
-
-  if (!res.ok) {
-    throw new Error(`AI service returned HTTP status ${res.status}`);
-  }
-
-  const aiResult = await res.json();
-
-  if (!aiResult || !aiResult.checkin_id) {
-    throw new Error('Invalid or malformed AI analysis response structure.');
-  }
-
-  // Insert valid AI analysis into public.ai_results
+  // Insert valid AI analysis into public.ai_results for counsellor review
   const { data: storedResult, error: insertError } = await supabase
     .from('ai_results')
     .insert([
@@ -115,7 +153,7 @@ async function processAndStoreAIAnalysis({ userId, checkinId, response }) {
         user_id: userId,
         indicators: aiResult.indicators || [],
         change_detected: Boolean(aiResult.change_detected),
-        explanation: aiResult.explanation || 'Analysis service is connected successfully.',
+        explanation: aiResult.explanation || 'Check-in analysis completed.',
         requires_counsellor_review: Boolean(aiResult.requires_counsellor_review),
       },
     ])
@@ -136,6 +174,10 @@ async function processAndStoreAIAnalysis({ userId, checkinId, response }) {
  * @returns {Promise<Object|null>} The check-in record if found, otherwise null.
  */
 export async function getTodayCheckIn() {
+  if (APP_CONFIG.presentationMode) {
+    return DEMO_CHECK_INS.length > 0 ? DEMO_CHECK_INS[0] : null;
+  }
+
   if (!isSupabaseConfigured()) {
     return null;
   }
@@ -177,6 +219,10 @@ export async function getTodayCheckIn() {
  * @param {string} userId Target user UUID
  */
 export async function getUserCheckInHistory(userId) {
+  if (APP_CONFIG.presentationMode) {
+    return DEMO_CHECK_INS;
+  }
+
   if (!userId) return [];
 
   if (!isSupabaseConfigured()) {

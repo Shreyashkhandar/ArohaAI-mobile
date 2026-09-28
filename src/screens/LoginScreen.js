@@ -10,6 +10,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   ActivityIndicator,
+  ScrollView,
   StatusBar as RNStatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -51,119 +52,125 @@ export default function LoginScreen({ onLoginSuccess, onNavigateToRegister, onNa
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
         >
-          <View style={styles.container}>
-            {/* Upper-Center Logo */}
-            <View style={styles.logoContainer}>
-              <ArohaLogo size={80} />
-            </View>
-
-            {/* Heading */}
-            <Text style={styles.heading}>Login</Text>
-
-            {/* Error Banner */}
-            {errorMessage ? (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{errorMessage}</Text>
-              </View>
-            ) : null}
-
-            {/* Form Section */}
-            <View style={styles.formContainer}>
-              {/* Email Input */}
-              <View style={styles.inputWrapper}>
-                <Text style={styles.inputLabel}>Email</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your email"
-                  placeholderTextColor="#8A9D93"
-                  value={email}
-                  onChangeText={(val) => {
-                    setEmail(val);
-                    if (errorMessage) setErrorMessage('');
-                  }}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!isLoading}
-                  accessibilityLabel="Email input field"
-                />
+          <ScrollView
+            contentContainerStyle={styles.scrollContainer}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.container}>
+              {/* Upper-Center Logo */}
+              <View style={styles.logoContainer}>
+                <ArohaLogo size={80} />
               </View>
 
-              {/* Password Input */}
-              <View style={styles.inputWrapper}>
-                <View style={styles.passwordHeaderRow}>
-                  <Text style={styles.inputLabel}>Password</Text>
-                  {onNavigateToForgotPassword && (
-                    <TouchableOpacity
-                      onPress={onNavigateToForgotPassword}
-                      activeOpacity={0.7}
-                      accessibilityRole="button"
-                      accessibilityLabel="Forgot password?"
-                    >
-                      <Text style={styles.forgotPasswordText}>Forgot password?</Text>
-                    </TouchableOpacity>
-                  )}
+              {/* Heading */}
+              <Text style={styles.heading}>Login</Text>
+
+              {/* Error Banner */}
+              {errorMessage ? (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>{errorMessage}</Text>
                 </View>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#8A9D93"
-                  value={password}
-                  onChangeText={(val) => {
-                    setPassword(val);
+              ) : null}
+
+              {/* Form Section */}
+              <View style={styles.formContainer}>
+                {/* Email Input */}
+                <View style={styles.inputWrapper}>
+                  <Text style={styles.inputLabel}>Email</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your email"
+                    placeholderTextColor="#8A9D93"
+                    value={email}
+                    onChangeText={(val) => {
+                      setEmail(val);
+                      if (errorMessage) setErrorMessage('');
+                    }}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isLoading}
+                    accessibilityLabel="Email input field"
+                  />
+                </View>
+
+                {/* Password Input */}
+                <View style={styles.inputWrapper}>
+                  <View style={styles.passwordHeaderRow}>
+                    <Text style={styles.inputLabel}>Password</Text>
+                    {onNavigateToForgotPassword && (
+                      <TouchableOpacity
+                        onPress={onNavigateToForgotPassword}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="Forgot password?"
+                      >
+                        <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your password"
+                    placeholderTextColor="#8A9D93"
+                    value={password}
+                    onChangeText={(val) => {
+                      setPassword(val);
+                      if (errorMessage) setErrorMessage('');
+                    }}
+                    secureTextEntry
+                    autoCapitalize="none"
+                    editable={!isLoading}
+                    accessibilityLabel="Password input field"
+                  />
+                </View>
+
+                {/* Role Dropdown */}
+                <RoleDropdown
+                  label="Select Role"
+                  options={['User', 'Counsellor']}
+                  selectedOption={role}
+                  onSelect={(selected) => {
+                    setRole(selected);
                     if (errorMessage) setErrorMessage('');
                   }}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  editable={!isLoading}
-                  accessibilityLabel="Password input field"
                 />
-              </View>
 
-              {/* Role Dropdown */}
-              <RoleDropdown
-                label="Select Role"
-                options={['User', 'Counsellor']}
-                selectedOption={role}
-                onSelect={(selected) => {
-                  setRole(selected);
-                  if (errorMessage) setErrorMessage('');
-                }}
-              />
-
-              {/* Primary Login Button */}
-              <TouchableOpacity
-                style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
-                onPress={handleLoginPress}
-                activeOpacity={0.8}
-                disabled={isLoading}
-                accessibilityRole="button"
-                accessibilityLabel="Login"
-                accessibilityHint="Submits login credentials"
-              >
-                {isLoading ? (
-                  <ActivityIndicator color={COLORS.buttonText} size="small" />
-                ) : (
-                  <Text style={styles.loginButtonText}>Login</Text>
-                )}
-              </TouchableOpacity>
-
-              {/* Navigation Link to Register */}
-              {onNavigateToRegister && (
+                {/* Primary Login Button */}
                 <TouchableOpacity
-                  style={styles.registerLink}
-                  onPress={onNavigateToRegister}
-                  activeOpacity={0.7}
+                  style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+                  onPress={handleLoginPress}
+                  activeOpacity={0.8}
+                  disabled={isLoading}
                   accessibilityRole="button"
-                  accessibilityLabel="Don't have an account? Register"
+                  accessibilityLabel="Login"
+                  accessibilityHint="Submits login credentials"
                 >
-                  <Text style={styles.registerLinkText}>
-                    Don't have an account? <Text style={styles.registerLinkBold}>Register</Text>
-                  </Text>
+                  {isLoading ? (
+                    <ActivityIndicator color={COLORS.buttonText} size="small" />
+                  ) : (
+                    <Text style={styles.loginButtonText}>Login</Text>
+                  )}
                 </TouchableOpacity>
-              )}
+
+                {/* Navigation Link to Register */}
+                {onNavigateToRegister && (
+                  <TouchableOpacity
+                    style={styles.registerLink}
+                    onPress={onNavigateToRegister}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Don't have an account? Register"
+                  >
+                    <Text style={styles.registerLinkText}>
+                      Don't have an account? <Text style={styles.registerLinkBold}>Register</Text>
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
-          </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
     </SafeAreaView>
@@ -178,6 +185,11 @@ const styles = StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingVertical: 24,
   },
   container: {
     flex: 1,

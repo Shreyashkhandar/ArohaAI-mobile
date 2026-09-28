@@ -59,3 +59,19 @@ export const supabase = createClient(
 );
 
 export const isSupabaseConfigured = () => isConfigured;
+
+/**
+ * Create an isolated, non-persisted Supabase client for registering victim auth accounts
+ * without overwriting or logging out the active counsellor session.
+ */
+export function createTempAuthClient() {
+  if (!isConfigured) return null;
+  return createClient(supabaseUrl, supabasePublishableKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
+

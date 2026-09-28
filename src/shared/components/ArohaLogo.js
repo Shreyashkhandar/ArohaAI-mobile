@@ -1,18 +1,11 @@
 import React from 'react';
-import { StyleSheet, View, Image } from 'react-native';
+import { StyleSheet } from 'react-native';
+import AppLogo from './AppLogo';
 
 export default function ArohaLogo({ size = 80, style }) {
-  return (
-    <View style={[styles.container, style]}>
-      <Image
-        source={require('../../../assets/icon.png')}
-        style={{ width: size, height: size }}
-        resizeMode="contain"
-        accessibilityLabel="ArohaAI Logo"
-      />
-    </View>
-  );
+  return <AppLogo size={size} style={style} />;
 }
+
 
 const styles = StyleSheet.create({
   container: {
